@@ -1,6 +1,6 @@
 #pragma once
-#include <stdint.h>
 
 void wifiManagerInit();
 bool wifiManagerIsConnected();
-void wifiManagerTick();  // call every loop, handles reconnection
+void wifiManagerTick();
+void wifiManagerStop();  // disconnect WiFi, keep radio on for ESP-NOW channel
