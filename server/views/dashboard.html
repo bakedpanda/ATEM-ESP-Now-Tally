@@ -44,12 +44,12 @@
     function render() {
       const grid = document.getElementById('grid')
       if (!units.length) { grid.innerHTML = '<p style="color:#666">No units seen yet.</p>'; return }
-      const sorted = [...units].sort((a,b) => a.id - b.id)
+      const sorted = [...units].sort((a,b) => (a.unitId ?? 99) - (b.unitId ?? 99))
       grid.innerHTML = sorted.map(u => {
-        const s = tally[String(u.id)] ?? 0
+        const s = tally[String(u.unitId)] ?? 0
         const name = inputNames[u.atemInput] ?? (u.atemInput ? `Input ${u.atemInput}` : 'Unassigned')
         return `<div class="unit-card ${stateClass(s)} ${u.online ? '' : 'offline'}">
-          <div class="uid">${u.id}</div>
+          <div class="uid">${u.unitId ?? '?'}</div>
           <div class="label">${name}</div>
           <div class="state">${u.online ? stateLabel(s) : 'Offline'}</div>
         </div>`

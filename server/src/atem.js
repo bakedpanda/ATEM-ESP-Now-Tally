@@ -23,7 +23,7 @@ export class AtemManager extends EventEmitter {
     })
     this.#atem.on('stateChanged', (state, paths) => {
       const relevant = paths.some(p =>
-        p.startsWith('tallys') || p.startsWith('inputs')
+        p.startsWith('video') || p.startsWith('inputs')
       )
       if (relevant) this.#emitTally()
     })
@@ -48,10 +48,21 @@ export class AtemManager extends EventEmitter {
     const state = this.#atem.state
     if (!state) return { tallys: {}, inputNames: {} }
 
+    // In atem-connection v3, tally comes from video.mixEffects — there is no state.tallys
     const tallys = {}
-    if (state.tallys) {
-      for (const [src, t] of Object.entries(state.tallys)) {
-        if (t) tallys[Number(src)] = { program: !!t.program, preview: !!t.preview }
+    if (state.video?.mixEffects) {
+      for (const me of state.video.mixEffects) {
+        if (!me) continue
+        const prog = me.programInput
+        const prev = me.previewInput
+        if (prog) {
+          if (!tallys[prog]) tallys[prog] = { program: false, preview: false }
+          tallys[prog].program = true
+        }
+        if (prev) {
+          if (!tallys[prev]) tallys[prev] = { program: false, preview: false }
+          tallys[prev].preview = true
+        }
       }
     }
 
