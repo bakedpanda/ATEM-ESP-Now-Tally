@@ -18,6 +18,11 @@ typedef struct __attribute__((packed)) {
     uint8_t unitId;  // 1–20
 } HeartbeatPacket;
 
+// Identify: bridge → receiver (unicast) (1 byte)
+typedef struct __attribute__((packed)) {
+    uint8_t type;  // always 0x03
+} IdentifyPacket;
+
 // Pack a state value (0–2) into a TallyPacket for a given unitId (1–20)
 inline void tallyPacketSetState(TallyPacket* pkt, uint8_t unitId, uint8_t state) {
     uint8_t offset = (unitId - 1) * 2;
