@@ -68,3 +68,4 @@ void wsClientInit(BridgeState* state) {
 
 void wsClientTick() { ws.loop(); }
 bool wsClientIsConnected() { return connected; }
+void wsClientSendText(const char* msg) { ws.sendTXT(msg); }

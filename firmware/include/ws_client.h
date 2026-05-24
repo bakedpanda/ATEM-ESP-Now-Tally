@@ -14,3 +14,4 @@ typedef struct {
 void wsClientInit(BridgeState* state);
 void wsClientTick();
 bool wsClientIsConnected();
+void wsClientSendText(const char* msg);
