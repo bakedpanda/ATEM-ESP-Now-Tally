@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>ATEM Tally — Settings</title>
+  <link rel="stylesheet" href="/app.css">
+</head>
+<body>
+  <nav>
+    <a href="/">Dashboard</a>
+    <a href="/assign">Assign</a>
+    <a href="/settings" class="active">Settings</a>
+  </nav>
+  <h1>Settings</h1>
+  <div class="field">
+    <label>ATEM IP Address</label>
+    <input type="text" id="atem-ip" placeholder="192.168.1.100">
+  </div>
+  <div class="field">
+    <label>Global Brightness (0–100%)</label>
+    <input type="number" id="brightness" min="0" max="100">
+  </div>
+  <div class="field">
+    <label>Program Brightness (0–100%)</label>
+    <input type="number" id="program-brightness" min="0" max="100">
+  </div>
+  <div class="field">
+    <label>Preview Brightness (0–100%)</label>
+    <input type="number" id="preview-brightness" min="0" max="100">
+  </div>
+  <div class="field">
+    <label>Standby Brightness (0–100%)</label>
+    <input type="number" id="standby-brightness" min="0" max="100">
+  </div>
+  <div class="field">
+    <label>Animation Speed</label>
+    <select id="anim-speed">
+      <option value="slow">Slow</option>
+      <option value="medium">Medium</option>
+      <option value="fast">Fast</option>
+    </select>
+  </div>
+  <button id="save-btn">Save Settings</button>
+  <span class="saved-msg" id="saved-msg">Saved ✓</span>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script>
+    const socket = io()
+    fetch('/api/config').then(r => r.json()).then(c => {
+      document.getElementById('atem-ip').value = c.atem.ip
+      document.getElementById('brightness').value = c.leds.brightness
+      document.getElementById('program-brightness').value = c.leds.programBrightness
+      document.getElementById('preview-brightness').value = c.leds.previewBrightness
+      document.getElementById('standby-brightness').value = c.leds.standbyBrightness
+      document.getElementById('anim-speed').value = c.leds.animSpeed
+    })
+
+    document.getElementById('save-btn').addEventListener('click', () => {
+      socket.emit('saveSettings', {
+        ip: document.getElementById('atem-ip').value.trim(),
+        leds: {
+          brightness: Number(document.getElementById('brightness').value),
+          programBrightness: Number(document.getElementById('program-brightness').value),
+          previewBrightness: Number(document.getElementById('preview-brightness').value),
+          standbyBrightness: Number(document.getElementById('standby-brightness').value),
+          animSpeed: document.getElementById('anim-speed').value,
+        }
+      })
+      const msg = document.getElementById('saved-msg')
+      msg.style.display = 'inline'
+      setTimeout(() => msg.style.display = 'none', 2000)
+    })
+  </script>
+</body>
+</html>

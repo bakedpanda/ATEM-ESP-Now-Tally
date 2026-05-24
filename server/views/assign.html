@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>ATEM Tally — Assign</title>
+  <link rel="stylesheet" href="/app.css">
+</head>
+<body>
+  <nav>
+    <a href="/">Dashboard</a>
+    <a href="/assign" class="active">Assign</a>
+    <a href="/settings">Settings</a>
+  </nav>
+  <h1>Unit Assignments</h1>
+  <table>
+    <thead><tr><th>Unit ID</th><th>Last Seen</th><th>ATEM Input</th></tr></thead>
+    <tbody id="tbody"></tbody>
+  </table>
+  <button id="save-btn">Save Assignments</button>
+  <span class="saved-msg" id="saved-msg">Saved ✓</span>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script>
+    const socket = io()
+    let units = [], inputNames = {}, config = {}
+
+    fetch('/api/config').then(r => r.json()).then(c => { config = c; render() })
+
+    socket.on('units', u => { units = u; render() })
+    socket.on('inputNames', n => { inputNames = n; render() })
+
+    function render() {
+      const sorted = [...units].sort((a,b) => a.id - b.id)
+      const options = [['0','Unassigned'], ...Object.entries(inputNames).map(([k,v]) => [k, v])]
+      document.getElementById('tbody').innerHTML = sorted.map(u => {
+        const current = config.units?.[String(u.id)]?.atemInput ?? 0
+        const opts = options.map(([v,l]) =>
+          `<option value="${v}" ${Number(v)===current?'selected':''}>${l}</option>`).join('')
+        const ago = u.lastSeen ? Math.round((Date.now()-u.lastSeen)/1000)+'s ago' : 'never'
+        return `<tr>
+          <td>${u.id}</td>
+          <td>${ago}</td>
+          <td><select data-id="${u.id}">${opts}</select></td>
+        </tr>`
+      }).join('')
+    }
+
+    document.getElementById('save-btn').addEventListener('click', () => {
+      const assignments = {}
+      document.querySelectorAll('select[data-id]').forEach(s => {
+        assignments[s.dataset.id] = Number(s.value)
+      })
+      socket.emit('saveAssignments', assignments)
+      const msg = document.getElementById('saved-msg')
+      msg.style.display = 'inline'
+      setTimeout(() => msg.style.display = 'none', 2000)
+    })
+  </script>
+</body>
+</html>

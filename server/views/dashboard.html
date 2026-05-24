@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>ATEM Tally — Dashboard</title>
+  <link rel="stylesheet" href="/app.css">
+</head>
+<body>
+  <nav>
+    <a href="/" class="active">Dashboard</a>
+    <a href="/assign">Assign</a>
+    <a href="/settings">Settings</a>
+  </nav>
+  <div class="status-bar">
+    <span><span class="dot" id="atem-dot"></span>ATEM: <span id="atem-status">–</span></span>
+    <span><span class="dot" id="bridge-dot"></span>Bridge: <span id="bridge-status">–</span></span>
+  </div>
+  <div class="unit-grid" id="grid"></div>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script>
+    const socket = io()
+    let units = [], tally = {}, inputNames = {}
+
+    function dotClass(status) {
+      return status === 'connected' ? 'green' : status === 'connecting' ? 'amber' : 'red'
+    }
+
+    socket.on('atemStatus', s => {
+      document.getElementById('atem-status').textContent = s
+      document.getElementById('atem-dot').className = 'dot ' + dotClass(s)
+    })
+    socket.on('bridgeStatus', s => {
+      document.getElementById('bridge-status').textContent = s
+      document.getElementById('bridge-dot').className = 'dot ' + dotClass(s)
+    })
+    socket.on('inputNames', n => { inputNames = n; render() })
+    socket.on('tally', data => { tally = data.states; render() })
+    socket.on('units', u => { units = u; render() })
+
+    function stateLabel(s) { return ['Standby','Preview','Program'][s] ?? '–' }
+    function stateClass(s) { return ['','preview','program'][s] ?? '' }
+
+    function render() {
+      const grid = document.getElementById('grid')
+      if (!units.length) { grid.innerHTML = '<p style="color:#666">No units seen yet.</p>'; return }
+      const sorted = [...units].sort((a,b) => a.id - b.id)
+      grid.innerHTML = sorted.map(u => {
+        const s = tally[String(u.id)] ?? 0
+        const name = inputNames[u.atemInput] ?? (u.atemInput ? `Input ${u.atemInput}` : 'Unassigned')
+        return `<div class="unit-card ${stateClass(s)} ${u.online ? '' : 'offline'}">
+          <div class="uid">${u.id}</div>
+          <div class="label">${name}</div>
+          <div class="state">${u.online ? stateLabel(s) : 'Offline'}</div>
+        </div>`
+      }).join('')
+    }
+  </script>
+</body>
+</html>

@@ -1,0 +1,32 @@
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: system-ui, sans-serif; background: #111; color: #eee; padding: 1.5rem; }
+nav { display: flex; gap: 1rem; margin-bottom: 1.5rem; }
+nav a { color: #aaa; text-decoration: none; font-size: 0.9rem; }
+nav a.active, nav a:hover { color: #fff; }
+h1 { font-size: 1.2rem; font-weight: 600; margin-bottom: 1rem; }
+.status-bar { display: flex; gap: 1rem; margin-bottom: 1.5rem; font-size: 0.85rem; color: #aaa; }
+.dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 4px; }
+.dot.green { background: #22c55e; }
+.dot.red { background: #ef4444; }
+.dot.amber { background: #f59e0b; }
+/* Dashboard grid */
+.unit-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 1rem; }
+.unit-card { border-radius: 8px; padding: 1rem; background: #1e1e1e; border: 2px solid #333; text-align: center; }
+.unit-card.program { border-color: #ef4444; background: #3b0000; }
+.unit-card.preview { border-color: #22c55e; background: #003b00; }
+.unit-card.offline { opacity: 0.4; }
+.unit-card .uid { font-size: 1.4rem; font-weight: 700; }
+.unit-card .label { font-size: 0.75rem; color: #aaa; margin-top: 0.25rem; }
+.unit-card .state { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.05em; margin-top: 0.5rem; }
+/* Forms */
+table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+th, td { padding: 0.6rem 0.8rem; text-align: left; border-bottom: 1px solid #333; }
+th { color: #aaa; font-weight: 500; }
+select, input[type=text], input[type=number] { background: #222; border: 1px solid #444; color: #eee;
+  padding: 0.4rem 0.6rem; border-radius: 4px; width: 100%; }
+button { background: #2563eb; color: #fff; border: none; padding: 0.6rem 1.2rem;
+  border-radius: 6px; cursor: pointer; font-size: 0.9rem; margin-top: 1rem; }
+button:hover { background: #1d4ed8; }
+.field { margin-bottom: 1rem; }
+label { display: block; font-size: 0.85rem; color: #aaa; margin-bottom: 0.3rem; }
+.saved-msg { color: #22c55e; font-size: 0.85rem; margin-left: 1rem; display: none; }
