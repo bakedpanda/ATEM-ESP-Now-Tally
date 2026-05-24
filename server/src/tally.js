@@ -3,7 +3,7 @@
 export function buildUnitStates(atemTallys, units) {
   const states = {}
   for (const [, cfg] of Object.entries(units)) {
-    if (cfg.role !== 'receiver' || !cfg.unitId) continue
+    if (!cfg.unitId || !cfg.atemInput) continue
     const id = String(cfg.unitId)
     const input = cfg.atemInput ?? 0
     if (!input) { states[id] = 0; continue }

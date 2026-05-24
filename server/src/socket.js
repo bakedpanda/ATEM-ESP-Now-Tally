@@ -152,6 +152,7 @@ export function createSocketServer(httpServer, atemManager, getConfig, saveConfi
           if (newA.role === 'bridge') {
             bridgeWs = ws
             io.emit('bridgeStatus', 'connected')
+            pushSettingsToBridge()
           } else if (oldA?.role === 'bridge' && bridgeWs === ws) {
             bridgeWs = null
             io.emit('bridgeStatus', 'disconnected')
@@ -164,8 +165,10 @@ export function createSocketServer(httpServer, atemManager, getConfig, saveConfi
     })
 
     socket.on('identifyUnit', ({ unitId }) => {
+      console.log(`identify: unitId=${unitId}, bridgeWs=${bridgeWs ? 'connected' : 'null'}`)
       const cfg = getConfig()
       const entry = Object.entries(cfg.units).find(([, v]) => v.unitId === unitId)
+      console.log(`identify: entry=${JSON.stringify(entry)}`)
       if (!entry) return
       const [mac, assignment] = entry
 
