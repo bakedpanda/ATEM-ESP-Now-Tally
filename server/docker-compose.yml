@@ -1,0 +1,13 @@
+services:
+  tally:
+    build: .
+    ports:
+      - "8259:8259"
+    volumes:
+      - tally-config:/config
+    environment:
+      - CONFIG_PATH=/config/config.json
+    restart: unless-stopped
+
+volumes:
+  tally-config:
