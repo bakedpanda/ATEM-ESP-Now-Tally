@@ -34,9 +34,9 @@ A Dockerised base station reads tally state from the ATEM switcher and distribut
 | No connection to bridge | Breathing | Amber |
 | Bridge connected, no ATEM | Breathing | White |
 
-## Status
+## Setup
 
-> 🚧 In development — design phase
+See **[SETUP.md](SETUP.md)** for the full installation guide — base station, bridge, camera units, wiring, and web UI configuration.
 
 ---
 
