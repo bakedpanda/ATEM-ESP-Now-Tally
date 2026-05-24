@@ -4,7 +4,7 @@
   "type": "module",
   "scripts": {
     "start": "node src/index.js",
-    "test": "node --experimental-vm-modules node_modules/.bin/jest"
+    "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js"
   },
   "dependencies": {
     "atem-connection": "^3.4.0",
