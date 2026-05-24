@@ -152,6 +152,9 @@ export function createSocketServer(httpServer, atemManager, getConfig, saveConfi
           if (newA.role === 'bridge') {
             bridgeWs = ws
             io.emit('bridgeStatus', 'connected')
+          } else if (oldA?.role === 'bridge' && bridgeWs === ws) {
+            bridgeWs = null
+            io.emit('bridgeStatus', 'disconnected')
           }
         }
       }
