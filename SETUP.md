@@ -21,7 +21,7 @@ This guide walks you through setting up the ATEM ESP-NOW Tally system from scrat
 | Tool | Purpose | Install |
 |---|---|---|
 | Docker Desktop (Mac/Win) or Docker Engine (Linux/Pi) | Runs the base station | [docker.com](https://www.docker.com/get-started/) |
-| PlatformIO CLI | Builds and flashes firmware | `pip install platformio` |
+| PlatformIO CLI | Builds and flashes firmware | See [section 4](#4-firmware-prerequisites) |
 | Python 3 | Required by PlatformIO | [python.org](https://www.python.org) |
 | Git | Cloning the repo | [git-scm.com](https://git-scm.com) |
 
@@ -76,13 +76,51 @@ The dashboard should update to show **ATEM: connected** within a few seconds. If
 
 ## 4. Firmware prerequisites
 
-Install PlatformIO if you haven't already:
+Install PlatformIO using the official installer for your OS. **Do not use `pip install platformio`** — the standalone installer sets up an isolated Python environment and is the recommended approach.
+
+### macOS
 
 ```bash
-pip install platformio
+curl -fsSL https://raw.githubusercontent.com/platformio/platformio-core-installer/develop/get-platformio.py -o get-platformio.py
+python3 get-platformio.py
 ```
 
-Verify:
+Add PlatformIO to your PATH (add this to `~/.zshrc` to make it permanent):
+
+```bash
+export PATH=$PATH:~/.platformio/penv/bin
+```
+
+### Windows
+
+Download and run the installer script in PowerShell:
+
+```powershell
+(Invoke-WebRequest -Uri "https://raw.githubusercontent.com/platformio/platformio-core-installer/develop/get-platformio.py" -OutFile "get-platformio.py").Content | python -
+```
+
+Or install via [PlatformIO IDE for VS Code](https://platformio.org/install/ide?install=vscode) — the extension handles everything automatically.
+
+### Linux
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/platformio/platformio-core-installer/develop/get-platformio.py -o get-platformio.py
+python3 get-platformio.py
+```
+
+Add to your PATH (add to `~/.bashrc` or `~/.zshrc`):
+
+```bash
+export PATH=$PATH:~/.platformio/penv/bin
+```
+
+> **Linux only:** you'll also need udev rules so PlatformIO can access the serial port without `sudo`:
+> ```bash
+> curl -fsSL https://raw.githubusercontent.com/platformio/platformio-core/develop/platformio/assets/system/99-platformio-udev.rules | sudo tee /etc/udev/rules.d/99-platformio-udev.rules
+> sudo udevadm control --reload-rules && sudo udevadm trigger
+> ```
+
+### Verify
 
 ```bash
 pio --version
