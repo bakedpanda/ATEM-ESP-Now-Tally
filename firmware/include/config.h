@@ -6,7 +6,7 @@
 #define UNIT_ID 1
 
 // WS2812 LED strip — GPIO pin and LED count
-#define LED_PIN   8
+#define LED_PIN   4
 #define LED_COUNT 6
 
 // ── Bridge only (ignored by camera units) ────────────────────────────────────
