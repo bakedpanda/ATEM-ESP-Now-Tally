@@ -12,14 +12,21 @@ export const DEFAULT_CONFIG = {
   units: {},
 }
 
+// MAC addresses contain colons; old unitId keys do not
+function isMacKeyed(units) {
+  const keys = Object.keys(units)
+  return keys.length === 0 || keys.every(k => k.includes(':'))
+}
+
 export function readConfig(path) {
   if (!existsSync(path)) return structuredClone(DEFAULT_CONFIG)
   try {
     const saved = JSON.parse(readFileSync(path, 'utf8'))
+    const units = saved.units ?? {}
     return {
       atem: { ...DEFAULT_CONFIG.atem, ...saved.atem },
       leds: { ...DEFAULT_CONFIG.leds, ...saved.leds },
-      units: saved.units ?? {},
+      units: isMacKeyed(units) ? units : {},  // clear old format
     }
   } catch {
     return structuredClone(DEFAULT_CONFIG)
