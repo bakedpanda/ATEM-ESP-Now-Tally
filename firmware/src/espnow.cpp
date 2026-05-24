@@ -21,7 +21,7 @@ static volatile uint8_t hbWrite      = 0;
 static uint8_t          hbRead       = 0;
 
 // Tally data (receiver mode)
-static TallyData       pendingTally  = {};
+static volatile TallyData pendingTally  = {};
 static volatile bool   hasTally      = false;
 static unsigned long   lastTallyMs   = 0;
 
@@ -37,9 +37,11 @@ static void addPeer(const uint8_t* mac) {
     esp_now_add_peer(&peer);
 }
 
-static void parseMacStr(const char* str, uint8_t* out) {
-    sscanf(str, "%hhx:%hhx:%hhx:%hhx:%hhx:%hhx",
+static bool parseMacStr(const char* str, uint8_t* out) {
+    if (!str || !out) return false;
+    int n = sscanf(str, "%hhx:%hhx:%hhx:%hhx:%hhx:%hhx",
         &out[0], &out[1], &out[2], &out[3], &out[4], &out[5]);
+    return n == 6;
 }
 
 // Legacy ESP-IDF v4 callback signature (Arduino ESP32 framework)
@@ -103,8 +105,9 @@ void espnowBroadcast(bool atemConnected, const uint8_t states[20]) {
 }
 
 void espnowSendIdentify(const char* targetMacStr) {
+    if (!targetMacStr) return;
     uint8_t mac[6];
-    parseMacStr(targetMacStr, mac);
+    if (!parseMacStr(targetMacStr, mac)) return;
     addPeer(mac);
     IdentifyPacket pkt = { 0x03 };
     esp_now_send(mac, (uint8_t*)&pkt, sizeof(pkt));
@@ -134,7 +137,7 @@ bool espnowNextHeartbeat(HeartbeatEntry* out) {
 
 bool espnowNextTally(TallyData* out) {
     if (!hasTally) return false;
-    *out = pendingTally;
+    *out = *(const TallyData*)&pendingTally;  // cast away volatile for copy
     hasTally = false;
     return true;
 }
