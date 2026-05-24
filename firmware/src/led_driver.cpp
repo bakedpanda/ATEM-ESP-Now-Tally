@@ -16,6 +16,7 @@ static uint32_t applyBrightness(uint8_t r, uint8_t g, uint8_t b, uint8_t pct) {
 }
 
 static uint8_t breathValue(uint8_t speedMs10) {
+    if (speedMs10 == 0) return 128;  // guard against division by zero
     unsigned long period = (unsigned long)speedMs10 * 10;
     float phase = (float)(millis() % period) / period;
     float sine = (sinf(phase * 2.0f * M_PI - M_PI / 2.0f) + 1.0f) / 2.0f;
@@ -23,6 +24,7 @@ static uint8_t breathValue(uint8_t speedMs10) {
 }
 
 void ledDriverInit(uint8_t pin, uint8_t count) {
+    if (strip) { delete strip; strip = nullptr; }
     numLeds = count;
     strip = new Adafruit_NeoPixel(count, pin, NEO_GRB + NEO_KHZ800);
     strip->begin();
@@ -33,8 +35,9 @@ void ledDriverSetState(LedState state, const LedSettings* settings) {
     if (state == LED_STATE_IDENTIFY) {
         if (currentState != LED_STATE_IDENTIFY) {
             previousState = currentState;  // save so we can revert
+            identifyStartMs = millis();    // only start timer on first entry
         }
-        identifyStartMs = millis();
+        // Do NOT reset timer if already in IDENTIFY state
     }
     currentState = state;
     if (settings) currentSettings = *settings;
@@ -85,6 +88,9 @@ void ledDriverTick() {
             colour = strip->Color(on, on, on);
             break;
         }
+        default:
+            colour = 0;  // off for unknown state
+            break;
     }
 
     for (uint8_t i = 0; i < numLeds; i++) strip->setPixelColor(i, colour);
