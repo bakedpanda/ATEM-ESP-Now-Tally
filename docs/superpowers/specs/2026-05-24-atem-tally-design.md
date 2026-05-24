@@ -1,6 +1,6 @@
 # ATEM Tally Light System — Design Spec
 **Date:** 2026-05-24  
-**Status:** In Progress (brainstorming phase)
+**Status:** Complete
 
 ---
 
@@ -61,6 +61,20 @@ A wireless tally light system for the Blackmagic ATEM Mini Extreme ISO G2 (and c
 6. Camera units send ESP-NOW heartbeats to the bridge every 5 seconds.
 7. Bridge forwards heartbeat data to base station via Socket.io — shown as online/offline in dashboard.
 
+### ESP-NOW Packet Format
+
+The bridge broadcasts a single packet to all units on every tally change, plus a keepalive every 2 seconds:
+
+```
+Byte 0:     flags — bit 0 = ATEM connected (1) / disconnected (0)
+Bytes 1–2:  tally states for unit IDs 1–20, packed as 2 bits per slot
+            00 = standby, 01 = preview, 10 = program, 11 = reserved
+```
+
+Total: 3 bytes. Each camera unit extracts its 2-bit slot by unit ID.
+
+Camera units learn the bridge MAC address from the sender field of the first ESP-NOW broadcast they receive — no pre-configuration needed. This MAC is then used for heartbeat replies.
+
 ### ESP-NOW Notes
 
 - ESP-NOW is **not a mesh network** — all camera units communicate directly with the bridge; packets do not hop.
@@ -91,7 +105,7 @@ All 6 LEDs on a unit show the same colour/effect.
 | **Preview** | Solid | Green `#00FF00` |
 | **Standby** (connected, neither) | Solid dim | White `#FFFFFF` @ ~20% brightness |
 | **No connection to bridge** | Breathing | Amber `#FF6000` |
-| **Bridge connected, no ATEM** | Breathing | White |
+| **Bridge connected, no ATEM** | Breathing | White — signalled via ATEM flag in ESP-NOW packet |
 
 **Breathing animation:** Slow sine-wave fade in/out. Speed configurable (slow / medium / fast) via web UI.  
 **Brightness:** Configurable globally (0–100%) with per-state overrides. Defaults: 80% program/preview, 20% standby.  
@@ -165,7 +179,7 @@ Served by Express with Socket.io for live updates. Three pages:
 Single container, single `docker-compose.yml`:
 - Node.js base image
 - Config volume for persistence
-- Host networking (required for ATEM UDP discovery on local network) or explicit port mapping
+- `atem-connection` uses unicast UDP to the configured ATEM IP (port 9910) — no multicast discovery. Bridge networking mode with explicit port mapping is sufficient; host networking is optional but simplifies setup on Linux.
 - Web UI exposed on port 3000
 
 ---
