@@ -21,9 +21,9 @@ export class AtemManager extends EventEmitter {
       this.#connected = false
       this.emit('status', 'disconnected')
     })
-    this.#atem.on('stateChanged', (state, paths) => {
+    this.#atem.on('stateChanged', (_state, paths) => {
       const relevant = paths.some(p =>
-        p.startsWith('tallys') || p.startsWith('inputs')
+        p.startsWith('tallys') || p.startsWith('inputs') || p.startsWith('video')
       )
       if (relevant) this.#emitTally()
     })
@@ -58,7 +58,13 @@ export class AtemManager extends EventEmitter {
     const inputNames = {}
     if (state.inputs) {
       for (const [src, inp] of Object.entries(state.inputs)) {
-        inputNames[Number(src)] = inp?.properties?.longName ?? `Input ${src}`
+        const n = Number(src)
+        const name = inp?.properties?.longName
+        if (!name) continue
+        // Skip internal sources: Black (0), Bars/Color/ME outputs have no longName
+        // or have internalPortType 0 = External. Keep everything with a name —
+        // the user can ignore internal sources in the UI.
+        inputNames[n] = name
       }
     }
 
