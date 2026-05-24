@@ -180,7 +180,7 @@ Single container, single `docker-compose.yml`:
 - Node.js base image
 - Config volume for persistence
 - `atem-connection` uses unicast UDP to the configured ATEM IP (port 9910) — no multicast discovery. Bridge networking mode with explicit port mapping is sufficient; host networking is optional but simplifies setup on Linux.
-- Web UI exposed on port 8259 (T-A-L-Y on a phone keypad)
+- Web UI exposed on port 8259
 
 ---
 
