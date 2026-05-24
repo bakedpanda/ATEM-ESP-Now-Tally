@@ -3,11 +3,12 @@
 #include <WiFi.h>
 
 static bool connected = false;
+static bool stopped = false;
 static unsigned long lastAttempt = 0;
 static const unsigned long RETRY_INTERVAL_MS = 5000;
 
 void wifiManagerInit() {
-    WiFi.mode(WIFI_AP_STA);  // AP_STA so ESP-NOW works on same channel as AP
+    WiFi.mode(WIFI_AP_STA);  // AP_STA keeps ESP-NOW on same channel as AP
     WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
     lastAttempt = millis();
 }
@@ -15,6 +16,7 @@ void wifiManagerInit() {
 bool wifiManagerIsConnected() { return connected; }
 
 void wifiManagerTick() {
+    if (stopped) return;
     bool nowConnected = WiFi.status() == WL_CONNECTED;
     if (nowConnected && !connected) {
         connected = true;
@@ -29,4 +31,13 @@ void wifiManagerTick() {
         lastAttempt = millis();
         WiFi.reconnect();
     }
+}
+
+void wifiManagerStop() {
+    // Disconnect from AP but keep radio active in STA mode.
+    // ESP-NOW preserves the channel after disconnect so peers remain reachable.
+    WiFi.disconnect(false);  // false = keep radio on (wifioff=false)
+    stopped = true;
+    connected = false;
+    Serial.println("WiFi stopped — radio on, channel preserved for ESP-NOW");
 }

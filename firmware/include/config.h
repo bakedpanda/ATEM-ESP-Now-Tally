@@ -1,16 +1,17 @@
 #pragma once
 
-// ── EDIT THIS FILE BEFORE FLASHING ──────────────────────────────────────────
-// Unit ID: 1–20. Must be unique across all units.
-// Bridge unit: set UNIT_ID to 20 (or any unused ID)
-#define UNIT_ID 1
+// ── SITE CONFIG — same for every device ──────────────────────────────────────
+// Flash every device with this identical file. Unit ID and role are assigned
+// from the web UI after first boot.
 
-// WS2812 LED strip — GPIO pin and LED count
-#define LED_PIN   4
-#define LED_COUNT 6
+// WS2812 LED strip
+#define LED_PIN   4    // GPIO pin for data line
+#define LED_COUNT 6    // Number of LEDs per unit
 
-// ── Bridge only (ignored by camera units) ────────────────────────────────────
-#define WIFI_SSID     "your-network-name"
+// WiFi (2.4 GHz only — ESP32-C3 does not support 5 GHz)
+#define WIFI_SSID     "your-network"
 #define WIFI_PASSWORD "your-password"
-#define SERVER_HOST   "192.168.1.100"  // base station IP
+
+// Base station (machine running Docker)
+#define SERVER_HOST   "192.168.1.100"
 #define SERVER_PORT   8259

@@ -4,6 +4,21 @@
   <meta charset="UTF-8">
   <title>ATEM Tally — Assign</title>
   <link rel="stylesheet" href="/app.css">
+  <style>
+    .bridge-warn {
+      background: #c0392b; color: #fff;
+      padding: 8px 14px; border-radius: 4px;
+      margin-bottom: 14px; display: none;
+    }
+    select[disabled] { opacity: 0.35; pointer-events: none; }
+    .identify-btn {
+      background: #444; color: #fff; border: none;
+      padding: 4px 10px; border-radius: 3px; cursor: pointer;
+      font-size: 0.85em;
+    }
+    .identify-btn:hover { background: #666; }
+    code { font-size: 0.9em; }
+  </style>
 </head>
 <body>
   <nav>
@@ -12,43 +27,114 @@
     <a href="/settings">Settings</a>
   </nav>
   <h1>Unit Assignments</h1>
+  <div class="bridge-warn" id="bridge-warn">
+    ⚠ More than one unit is set to Bridge — only one bridge is supported.
+  </div>
   <table>
-    <thead><tr><th>Unit ID</th><th>Last Seen</th><th>ATEM Input</th></tr></thead>
+    <thead><tr>
+      <th>MAC</th>
+      <th>Unit ID</th>
+      <th>Role</th>
+      <th>ATEM Input</th>
+      <th>Last Seen</th>
+      <th></th>
+    </tr></thead>
     <tbody id="tbody"></tbody>
   </table>
   <button id="save-btn">Save Assignments</button>
-  <span class="saved-msg" id="saved-msg">Saved ✓</span>
+  <span class="saved-msg" id="saved-msg" style="display:none">Saved ✓</span>
 
   <script src="/socket.io/socket.io.js"></script>
   <script>
     const socket = io()
-    let units = [], inputNames = {}, config = {}
+    let units = [], inputNames = {}
 
-    fetch('/api/config').then(r => r.json()).then(c => { config = c; render() })
+    // Event delegation: role selection
+    document.getElementById('tbody').addEventListener('change', (e) => {
+      if (e.target.classList.contains('role-select')) {
+        e.target.closest('tr').querySelector('.input-select').disabled =
+          e.target.value === 'bridge'
+        checkMultiBridge()
+      }
+    })
+
+    // Event delegation: identify buttons
+    document.getElementById('tbody').addEventListener('click', (e) => {
+      if (e.target.classList.contains('identify-btn')) {
+        socket.emit('identifyUnit', { unitId: Number(e.target.dataset.unitid) })
+      }
+    })
 
     socket.on('units', u => { units = u; render() })
     socket.on('inputNames', n => { inputNames = n; render() })
 
+    function shortMac(mac) {
+      return mac ? mac.slice(-8) : '—'
+    }
+
     function render() {
-      const sorted = [...units].sort((a,b) => a.id - b.id)
-      const options = [['0','Unassigned'], ...Object.entries(inputNames).map(([k,v]) => [k, v])]
+      const sorted = [...units].sort((a, b) => (a.unitId ?? 99) - (b.unitId ?? 99))
+      const inputOptions = [
+        ['0', 'Unassigned'],
+        ...Object.entries(inputNames).map(([k, v]) => [k, v])
+      ]
+
       document.getElementById('tbody').innerHTML = sorted.map(u => {
-        const current = config.units?.[String(u.id)]?.atemInput ?? 0
-        const opts = options.map(([v,l]) =>
-          `<option value="${v}" ${Number(v)===current?'selected':''}>${l}</option>`).join('')
-        const ago = u.lastSeen ? Math.round((Date.now()-u.lastSeen)/1000)+'s ago' : 'never'
-        return `<tr>
-          <td>${u.id}</td>
-          <td>${ago}</td>
-          <td><select data-id="${u.id}">${opts}</select></td>
+        const mac = u.mac
+        const unitIdVal = u.unitId ?? ''
+        const role = u.role ?? 'receiver'
+        const isBridge = role === 'bridge'
+        const ago = u.lastSeen
+          ? Math.round((Date.now() - u.lastSeen) / 1000) + 's ago'
+          : 'never'
+        const dot = u.online ? '🟢' : '⚫'
+
+        const inputOpts = inputOptions.map(([v, l]) =>
+          `<option value="${v}" ${Number(v) === (u.atemInput ?? 0) ? 'selected' : ''}>${l}</option>`
+        ).join('')
+
+        const identifyBtn = u.unitId
+          ? `<button class="identify-btn" data-unitid="${u.unitId}">Identify</button>`
+          : ''
+
+        return `<tr data-mac="${mac}">
+          <td><code title="${mac}">${shortMac(mac)}</code></td>
+          <td><input type="number" min="1" max="20" value="${unitIdVal}"
+               class="unitid-input" style="width:52px"></td>
+          <td>
+            <select class="role-select">
+              <option value="receiver" ${!isBridge ? 'selected' : ''}>Receiver</option>
+              <option value="bridge" ${isBridge ? 'selected' : ''}>Bridge</option>
+            </select>
+          </td>
+          <td>
+            <select class="input-select" ${isBridge ? 'disabled' : ''}>
+              ${inputOpts}
+            </select>
+          </td>
+          <td>${dot} ${ago}</td>
+          <td>${identifyBtn}</td>
         </tr>`
       }).join('')
+
+      checkMultiBridge()
+    }
+
+    function checkMultiBridge() {
+      const count = [...document.querySelectorAll('.role-select')]
+        .filter(s => s.value === 'bridge').length
+      document.getElementById('bridge-warn').style.display =
+        count > 1 ? 'block' : 'none'
     }
 
     document.getElementById('save-btn').addEventListener('click', () => {
-      const assignments = {}
-      document.querySelectorAll('select[data-id]').forEach(s => {
-        assignments[s.dataset.id] = Number(s.value)
+      const assignments = []
+      document.querySelectorAll('tr[data-mac]').forEach(row => {
+        const mac = row.dataset.mac
+        const unitId = Number(row.querySelector('.unitid-input').value) || 0
+        const role = row.querySelector('.role-select').value
+        const atemInput = Number(row.querySelector('.input-select').value) || 0
+        if (mac) assignments.push({ mac, unitId, role, atemInput })
       })
       socket.emit('saveAssignments', assignments)
       const msg = document.getElementById('saved-msg')

@@ -57,6 +57,15 @@ void test_flags_atem_connected() {
     TEST_ASSERT_EQUAL(0, pkt.flags & 0x01);
 }
 
+void test_identify_packet_size_is_1_byte() {
+    TEST_ASSERT_EQUAL(1, sizeof(IdentifyPacket));
+}
+
+void test_identify_packet_type_field() {
+    IdentifyPacket pkt = { 0x03 };
+    TEST_ASSERT_EQUAL(0x03, pkt.type);
+}
+
 int main() {
     UNITY_BEGIN();
     RUN_TEST(test_set_get_state_unit1_program);
@@ -67,5 +76,7 @@ int main() {
     RUN_TEST(test_packet_size_is_3_bytes);
     RUN_TEST(test_heartbeat_size_is_2_bytes);
     RUN_TEST(test_flags_atem_connected);
+    RUN_TEST(test_identify_packet_size_is_1_byte);
+    RUN_TEST(test_identify_packet_type_field);
     return UNITY_END();
 }

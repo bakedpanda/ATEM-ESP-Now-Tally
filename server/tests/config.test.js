@@ -31,3 +31,29 @@ test('writeConfig then readConfig round-trips', () => {
   const loaded = readConfig(TMP)
   expect(loaded.atem.ip).toBe('10.0.0.2')
 })
+
+test('old unitId-keyed units are cleared on load (migration)', () => {
+  writeFileSync(TMP, JSON.stringify({
+    units: { '3': { atemInput: 2 }, '5': { atemInput: 1 } }
+  }))
+  const c = readConfig(TMP)
+  expect(c.units).toEqual({})
+})
+
+test('new MAC-keyed units are preserved on load', () => {
+  const units = {
+    'AA:BB:CC:DD:EE:01': { unitId: 3, role: 'receiver', atemInput: 2 },
+  }
+  writeFileSync(TMP, JSON.stringify({ units }))
+  const c = readConfig(TMP)
+  expect(c.units['AA:BB:CC:DD:EE:01'].unitId).toBe(3)
+  expect(c.units['AA:BB:CC:DD:EE:01'].role).toBe('receiver')
+})
+
+test('mixed key formats are cleared on load (safety)', () => {
+  writeFileSync(TMP, JSON.stringify({
+    units: { '3': { atemInput: 2 }, 'AA:BB:CC:DD:EE:01': { atemInput: 1 } }
+  }))
+  const c = readConfig(TMP)
+  expect(c.units).toEqual({})
+})

@@ -12,14 +12,23 @@ export const DEFAULT_CONFIG = {
   units: {},
 }
 
+// MAC addresses match XX:XX:XX:XX:XX:XX (case-insensitive hex pairs)
+const MAC_RE = /^([0-9A-Fa-f]{2}:){5}[0-9A-Fa-f]{2}$/
+
+function isMacKeyed(units) {
+  const keys = Object.keys(units)
+  return keys.length === 0 || keys.every(k => MAC_RE.test(k))
+}
+
 export function readConfig(path) {
   if (!existsSync(path)) return structuredClone(DEFAULT_CONFIG)
   try {
     const saved = JSON.parse(readFileSync(path, 'utf8'))
+    const units = saved.units ?? {}
     return {
       atem: { ...DEFAULT_CONFIG.atem, ...saved.atem },
       leds: { ...DEFAULT_CONFIG.leds, ...saved.leds },
-      units: saved.units ?? {},
+      units: isMacKeyed(units) ? units : {},  // clear old format
     }
   } catch {
     return structuredClone(DEFAULT_CONFIG)

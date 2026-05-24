@@ -1,6 +1,6 @@
 # Setup Guide
 
-This guide walks you through setting up the ATEM ESP-NOW Tally system from scratch — base station, bridge unit, and camera units.
+This guide walks you through setting up the ATEM ESP-NOW Tally system from scratch — base station and tally units.
 
 ---
 
@@ -10,7 +10,7 @@ This guide walks you through setting up the ATEM ESP-NOW Tally system from scrat
 
 | Item | Notes |
 |---|---|
-| ESP32-C3 with external antenna | 1× bridge unit + 1× per camera |
+| ESP32-C3 with external antenna | One per tally unit (bridge + receivers — all identical hardware) |
 | WS2812 LED strip, 6 LEDs per unit | Cut from a longer strip |
 | USB-A to USB-C cables | One per unit (power only) |
 | USB power supplies | One per unit, or a powered USB hub |
@@ -130,23 +130,25 @@ The first firmware build will download the ESP32 toolchain automatically (~500 M
 
 ---
 
-## 5. Flash the bridge unit
+## 5. Flash all units
 
-The bridge connects to your WiFi network and relays tally data to all camera units over ESP-NOW.
+All units — bridge and receivers — run **identical firmware**. Role (bridge or receiver) and unit ID are assigned from the web UI after first boot, not at flash time.
 
 ### Configure
 
-Edit **`firmware/include/config.h`**:
+Edit **`firmware/include/config.h`** once for your site. Every unit gets this same file:
 
 ```cpp
-#define UNIT_ID       20              // Bridge is always unit 20
+// WS2812 LED strip
+#define LED_PIN   4    // GPIO pin for data line
+#define LED_COUNT 6    // Number of LEDs per unit
 
-#define LED_PIN       8               // GPIO pin for WS2812 strip
-#define LED_COUNT     6               // Number of LEDs on this unit
+// WiFi (2.4 GHz only — ESP32-C3 does not support 5 GHz)
+#define WIFI_SSID     "your-network"
+#define WIFI_PASSWORD "your-password"
 
-#define WIFI_SSID     "your-network"  // Your WiFi network name
-#define WIFI_PASSWORD "your-password" // Your WiFi password
-#define SERVER_HOST   "192.168.1.100" // IP of the machine running the Docker server
+// Base station (machine running Docker)
+#define SERVER_HOST   "192.168.1.100"
 #define SERVER_PORT   8259
 ```
 
@@ -154,23 +156,25 @@ Edit **`firmware/include/config.h`**:
 
 ### Build and flash
 
-Connect the bridge ESP32-C3 via USB, then:
+Connect an ESP32-C3 via USB, then:
 
 ```bash
 cd firmware
-pio run -e bridge --target upload
+pio run -e tally --target upload
 ```
 
 PlatformIO will detect the serial port automatically. If it can't find the device, specify it manually:
 
 ```bash
-pio run -e bridge --target upload --upload-port COM3   # Windows
-pio run -e bridge --target upload --upload-port /dev/ttyUSB0  # Linux/Mac
+pio run -e tally --target upload --upload-port COM3          # Windows
+pio run -e tally --target upload --upload-port /dev/ttyUSB0  # Linux/Mac
 ```
+
+**Repeat for every unit** — same command, same firmware, no changes needed between units.
 
 ### Verify
 
-Open the serial monitor to confirm it connected:
+Open the serial monitor to confirm each unit connects:
 
 ```bash
 pio device monitor
@@ -180,89 +184,61 @@ You should see:
 ```
 Connecting to WiFi......... connected
 WiFi connected. IP: 192.168.x.x  Channel: 6
-WS connected to server
-Bridge unit 20 ready
+WS connected — MAC AA:BB:CC:DD:EE:FF
+Unprovisioned — awaiting assignment in /assign
 ```
 
-The bridge LEDs will show:
-- **Amber breathing** → connecting to WiFi / server
-- **White breathing** → connected to server, ATEM not yet configured or disconnected
-- **Dim white** → connected and standby (if bridge is mapped to an unused ATEM input)
+The LEDs will show **blue breathing** — this means the unit is connected to the server and waiting to be assigned a role.
 
 ---
 
-## 6. Flash camera units
+## 6. Assign roles and unit IDs
 
-Each camera unit only needs a unit ID set — no WiFi credentials required.
-
-### Configure
-
-Edit **`firmware/include/config.h`**:
-
-```cpp
-#define UNIT_ID   1    // ← Change this for each unit (1–19)
-
-#define LED_PIN   8    // GPIO pin for WS2812 strip
-#define LED_COUNT 6    // Number of LEDs
-```
-
-Leave the WiFi defines as-is — camera units don't use them.
-
-### Build and flash
-
-```bash
-cd firmware
-pio run -e camera --target upload
-```
-
-### Verify
-
-Open the serial monitor:
-
-```bash
-pio device monitor
-```
-
-Expected:
-```
-Camera unit 1 ready
-```
-
-The LEDs will show **amber breathing** until the bridge is powered on and broadcasting.
-
-### Repeat for all camera units
-
-For each unit:
-1. Change `UNIT_ID` in `config.h` to the next number (1, 2, 3 …)
-2. Flash: `pio run -e camera --target upload`
-3. Label the physical unit with its ID
-
----
-
-## 7. Assign units to cameras
-
-Once units are powered on and the bridge is running, they appear in the web UI via heartbeat.
+Once units are powered on and connected to WiFi, they appear on the assign page immediately.
 
 1. Open **http://[server-ip]:8259/assign**
-2. Each unit ID that has been seen will appear in the table with a "Last Seen" timestamp
-3. Use the dropdown to assign each unit to an ATEM input (input names are pulled live from your switcher)
+2. Each unit appears as a row showing its MAC address (last 8 chars) and online status 🟢
+3. For each unit, set:
+   - **Unit ID** — a number 1–20 (must be unique per receiver; bridge can share an ID or have its own)
+   - **Role** — `Bridge` for the one unit connected over WiFi; `Receiver` for all others
+   - **ATEM Input** — which ATEM source this unit follows (leave 0 for the bridge if it has no camera)
 4. Click **Save Assignments**
 
-The dashboard at **http://[server-ip]:8259** shows live tally state for all units.
+Units receive their role assignment in real time if they're still connected. After saving:
+- The **bridge** stays connected to the server over WiFi and begins broadcasting tally via ESP-NOW. Its LEDs reflect its own ATEM input.
+- **Receivers** disconnect from WiFi and switch to ESP-NOW-only mode. Their LEDs will show amber breathing until the bridge comes online.
+
+> **One bridge only.** The UI will warn you if more than one unit is set to Bridge.
+
+> **Identify button:** Click **Identify** next to any unit to trigger a 5-second white flash on that unit's LEDs — useful for matching physical units to rows in the table.
 
 ---
 
-## 8. LED wiring
+## 7. LED wiring
 
 Each unit has a WS2812 strip with 6 LEDs. Connect it to the ESP32-C3:
 
 | Strip wire | ESP32-C3 pin |
 |---|---|
-| Data | GPIO 8 (configurable via `LED_PIN` in `config.h`) |
+| Data | GPIO 4 (configurable via `LED_PIN` in `config.h`) |
 | 5V / VCC | 5V (VBUS pin, or external 5V) |
 | GND | GND |
 
 > **Current draw:** 6 WS2812 LEDs at full white = ~360 mA. At typical tally brightness (20–80%), draw is much lower. USB power is sufficient for all states.
+
+---
+
+## 8. LED states
+
+| Colour | Pattern | Meaning |
+|---|---|---|
+| Amber | Breathing | No WiFi / no server connection |
+| Blue | Breathing | Connected to server, awaiting role assignment |
+| White | Breathing | Assigned, but ATEM not connected or not configured |
+| Dim white | Solid | Standby — connected, not on any ATEM bus |
+| Green | Solid | On preview |
+| Red | Solid | On program (on air) |
+| White | Rapid flash (5 s) | Identify triggered from web UI |
 
 ---
 
@@ -283,11 +259,9 @@ All settings are at **http://[server-ip]:8259/settings** and persist across rest
 
 ## 10. Replacing a unit
 
-If a unit fails, you have two options:
+If a unit fails, flash a replacement with the same firmware (`pio run -e tally --target upload`) and power it on. It will appear on the `/assign` page as a new MAC address showing blue breathing.
 
-**Option A — Same unit ID:** Flash the replacement with the same `UNIT_ID`. No config changes needed; it slots straight in.
-
-**Option B — New unit ID:** Flash with a new ID, then go to `/assign` and remap it to the correct ATEM input.
+Assign it the same Unit ID and Role as the failed unit, click **Save**. The replacement slots straight in with no other changes needed.
 
 ---
 
@@ -297,14 +271,21 @@ If a unit fails, you have two options:
 - Check the bridge serial monitor — did it connect to WiFi and the server?
 - Confirm `SERVER_HOST` in `config.h` points to the correct IP
 - Make sure the Docker container is running: `docker compose ps`
+- Confirm the unit was assigned `Role: Bridge` on the `/assign` page
 
-### Camera units show amber breathing after bridge is on
-- The camera learns the bridge MAC from the first broadcast. Wait a few seconds after the bridge starts.
-- If it persists, confirm the bridge is broadcasting (serial monitor should show "WS connected to server")
+### Unit shows blue breathing and doesn't progress
+- The unit is connected to the server but hasn't been assigned a role yet
+- Go to `/assign` and assign it a Role and Unit ID, then click **Save**
+
+### Receiver units show amber breathing after bridge is on
+- The receiver learns the bridge MAC from the first ESP-NOW broadcast — wait a few seconds after the bridge starts
+- Confirm the bridge is connected to the server (dashboard shows "Bridge: connected")
+- Confirm the bridge was assigned `Role: Bridge` on `/assign`
 
 ### Units don't appear in /assign
-- Units appear only after sending a heartbeat (every 5 seconds). Wait up to 10 seconds after powering on.
-- Check the bridge is connected to the server (dashboard shows "Bridge: connected")
+- Units appear as soon as they connect and send their `hello` message (within a few seconds of booting)
+- Check the serial monitor — if it's stuck on `Connecting to WiFi`, check `WIFI_SSID` / `WIFI_PASSWORD` in `config.h`
+- Make sure the unit can reach `SERVER_HOST` on port `SERVER_PORT`
 
 ### ATEM won't connect
 - Verify the IP in Settings is correct
