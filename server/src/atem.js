@@ -69,7 +69,7 @@ export class AtemManager extends EventEmitter {
     const inputNames = {}
     if (state.inputs) {
       for (const [src, inp] of Object.entries(state.inputs)) {
-        inputNames[Number(src)] = inp?.properties?.longName ?? `Input ${src}`
+        inputNames[Number(src)] = inp?.longName ?? `Input ${src}`
       }
     }
 
