@@ -49,3 +49,11 @@ test('new MAC-keyed units are preserved on load', () => {
   expect(c.units['AA:BB:CC:DD:EE:01'].unitId).toBe(3)
   expect(c.units['AA:BB:CC:DD:EE:01'].role).toBe('receiver')
 })
+
+test('mixed key formats are cleared on load (safety)', () => {
+  writeFileSync(TMP, JSON.stringify({
+    units: { '3': { atemInput: 2 }, 'AA:BB:CC:DD:EE:01': { atemInput: 1 } }
+  }))
+  const c = readConfig(TMP)
+  expect(c.units).toEqual({})
+})

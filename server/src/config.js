@@ -12,10 +12,12 @@ export const DEFAULT_CONFIG = {
   units: {},
 }
 
-// MAC addresses contain colons; old unitId keys do not
+// MAC addresses match XX:XX:XX:XX:XX:XX (case-insensitive hex pairs)
+const MAC_RE = /^([0-9A-Fa-f]{2}:){5}[0-9A-Fa-f]{2}$/
+
 function isMacKeyed(units) {
   const keys = Object.keys(units)
-  return keys.length === 0 || keys.every(k => k.includes(':'))
+  return keys.length === 0 || keys.every(k => MAC_RE.test(k))
 }
 
 export function readConfig(path) {
