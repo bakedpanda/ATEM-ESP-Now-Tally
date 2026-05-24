@@ -49,6 +49,22 @@
     const socket = io()
     let units = [], inputNames = {}
 
+    // Event delegation: role selection
+    document.getElementById('tbody').addEventListener('change', (e) => {
+      if (e.target.classList.contains('role-select')) {
+        e.target.closest('tr').querySelector('.input-select').disabled =
+          e.target.value === 'bridge'
+        checkMultiBridge()
+      }
+    })
+
+    // Event delegation: identify buttons
+    document.getElementById('tbody').addEventListener('click', (e) => {
+      if (e.target.classList.contains('identify-btn')) {
+        socket.emit('identifyUnit', { unitId: Number(e.target.dataset.unitid) })
+      }
+    })
+
     socket.on('units', u => { units = u; render() })
     socket.on('inputNames', n => { inputNames = n; render() })
 
@@ -100,22 +116,6 @@
           <td>${identifyBtn}</td>
         </tr>`
       }).join('')
-
-      // Role dropdown → toggle ATEM input disabled state
-      document.querySelectorAll('.role-select').forEach(sel => {
-        sel.addEventListener('change', () => {
-          sel.closest('tr').querySelector('.input-select').disabled =
-            sel.value === 'bridge'
-          checkMultiBridge()
-        })
-      })
-
-      // Identify buttons
-      document.querySelectorAll('.identify-btn').forEach(btn => {
-        btn.addEventListener('click', () => {
-          socket.emit('identifyUnit', { unitId: Number(btn.dataset.unitid) })
-        })
-      })
 
       checkMultiBridge()
     }
