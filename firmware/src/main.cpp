@@ -126,7 +126,9 @@ void loop() {
             }
 
             if (bridgeState.updated || now - lastBroadcastMs >= BROADCAST_INTERVAL_MS) {
-                espnowBroadcast(bridgeState.atemConnected, bridgeState.states);
+                espnowBroadcast(bridgeState.atemConnected, bridgeState.states,
+                                bridgeState.brightness, bridgeState.standbyBrightness,
+                                bridgeState.animSpeedMs);
                 bridgeState.updated = false;
                 lastBroadcastMs = now;
             }
@@ -186,7 +188,11 @@ void loop() {
                     default:            ownState = LED_STATE_STANDBY; break;
                 }
             }
-            LedSettings settings = { 80, 20, 40 };
+            LedSettings settings = {
+                bridgeState.brightness,
+                bridgeState.standbyBrightness,
+                bridgeState.animSpeedMs,
+            };
             ledDriverSetState(ownState, &settings);
             ledDriverTick();
             break;

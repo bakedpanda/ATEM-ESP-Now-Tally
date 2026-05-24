@@ -6,10 +6,13 @@
 #define TALLY_PREVIEW  1
 #define TALLY_PROGRAM  2
 
-// Broadcast packet: bridge → camera units (3 bytes)
+// Broadcast packet: bridge → camera units (6 bytes)
 typedef struct __attribute__((packed)) {
-    uint8_t flags;      // bit 0: 1=ATEM connected
-    uint8_t states[2];  // 20 slots × 2 bits, LSB-first per byte
+    uint8_t flags;             // bit 0: 1=ATEM connected
+    uint8_t states[2];         // 20 slots × 2 bits, LSB-first per byte
+    uint8_t brightness;        // 0–100 %
+    uint8_t standbyBrightness; // 0–100 %
+    uint8_t animSpeedMs;       // 40=slow, 25=medium, 15=fast
 } TallyPacket;
 
 // Heartbeat: camera → bridge (2 bytes)

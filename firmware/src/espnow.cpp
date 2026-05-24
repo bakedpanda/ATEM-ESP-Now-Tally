@@ -54,7 +54,10 @@ static void onDataRecv(const uint8_t* mac_addr, const uint8_t* data, int len) {
             addPeer(bridgeMac);
         }
         const TallyPacket* pkt = (const TallyPacket*)data;
-        pendingTally.atemConnected = (pkt->flags & 0x01) != 0;
+        pendingTally.atemConnected    = (pkt->flags & 0x01) != 0;
+        pendingTally.brightness       = pkt->brightness;
+        pendingTally.standbyBrightness = pkt->standbyBrightness;
+        pendingTally.animSpeedMs      = pkt->animSpeedMs ? pkt->animSpeedMs : 40;
         for (uint8_t i = 1; i <= 20; i++) {
             pendingTally.states[i-1] = tallyPacketGetState(pkt, i);
         }
@@ -97,9 +100,13 @@ void espnowInit() {
     addPeer(BROADCAST_MAC);
 }
 
-void espnowBroadcast(bool atemConnected, const uint8_t states[20]) {
+void espnowBroadcast(bool atemConnected, const uint8_t states[20],
+                     uint8_t brightness, uint8_t standbyBrightness, uint8_t animSpeedMs) {
     TallyPacket pkt = {};
-    pkt.flags = atemConnected ? 0x01 : 0x00;
+    pkt.flags             = atemConnected ? 0x01 : 0x00;
+    pkt.brightness        = brightness;
+    pkt.standbyBrightness = standbyBrightness;
+    pkt.animSpeedMs       = animSpeedMs;
     for (uint8_t i = 1; i <= 20; i++) tallyPacketSetState(&pkt, i, states[i-1]);
     esp_now_send(BROADCAST_MAC, (uint8_t*)&pkt, sizeof(pkt));
 }

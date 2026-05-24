@@ -12,13 +12,17 @@ typedef struct {
 typedef struct {
     bool    atemConnected;
     uint8_t states[20];
+    uint8_t brightness;
+    uint8_t standbyBrightness;
+    uint8_t animSpeedMs;
 } TallyData;
 
 // Call after WiFi is initialised (uses current WiFi channel)
 void espnowInit();
 
-// Bridge: broadcast tally to all receivers
-void espnowBroadcast(bool atemConnected, const uint8_t states[20]);
+// Bridge: broadcast tally + LED settings to all receivers
+void espnowBroadcast(bool atemConnected, const uint8_t states[20],
+                     uint8_t brightness, uint8_t standbyBrightness, uint8_t animSpeedMs);
 
 // Bridge: send unicast IdentifyPacket to a receiver by MAC string
 void espnowSendIdentify(const char* targetMacStr);
