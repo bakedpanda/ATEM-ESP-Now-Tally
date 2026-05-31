@@ -33,6 +33,12 @@
       padding: 3px 9px; border-radius: 3px; cursor: pointer; font-size: 0.82em;
     }
     .identify-btn:hover { background: #555; color: #fff; }
+    .remove-device-btn {
+      background: none; border: none; color: #555;
+      cursor: pointer; font-size: 1em; padding: 2px 5px; line-height: 1;
+      border-radius: 3px;
+    }
+    .remove-device-btn:hover { color: #e74c3c; background: #2a1a1a; }
     details summary { cursor: pointer; color: #666; font-size: 0.88em; padding: 8px 0; }
     code { font-size: 0.88em; color: #999; }
     td { vertical-align: middle; }
@@ -89,7 +95,17 @@
 
     socket.on('units', u => {
       units = u
-      if (inputMap === null) inputMap = buildInputMapFromUnits(u)
+      if (inputMap === null) {
+        inputMap = buildInputMapFromUnits(u)
+      } else {
+        // Prune unitIds no longer present so removals from other tabs propagate
+        const activeIds = new Set(u.filter(x => x.unitId).map(x => x.unitId))
+        for (const uids of Object.values(inputMap)) {
+          for (let i = uids.length - 1; i >= 0; i--) {
+            if (!activeIds.has(uids[i])) uids.splice(i, 1)
+          }
+        }
+      }
       render()
     })
     socket.on('inputNames', n => { inputNames = n; render() })
@@ -143,7 +159,10 @@
             </select>
           </td>
           <td>${u.online ? '🟢' : '⚫'} ${ago(u.lastSeen)}</td>
-          <td>${u.unitId ? '<button class="identify-btn" data-uid="' + u.unitId + '">Identify</button>' : ''}</td>
+          <td>
+            ${u.unitId ? '<button class="identify-btn" data-uid="' + u.unitId + '">Identify</button>' : ''}
+            <button class="remove-device-btn" data-mac="${u.mac}" title="Remove device">✕</button>
+          </td>
         </tr>`).join('')
       checkMultiBridge()
     }
@@ -188,8 +207,24 @@
     document.getElementById('devices-tbody').addEventListener('change', checkMultiBridge)
 
     document.getElementById('devices-tbody').addEventListener('click', e => {
-      const btn = e.target.closest('.identify-btn')
-      if (btn) socket.emit('identifyUnit', { unitId: Number(btn.dataset.uid) })
+      const identifyBtn = e.target.closest('.identify-btn')
+      if (identifyBtn) socket.emit('identifyUnit', { unitId: Number(identifyBtn.dataset.uid) })
+
+      const removeBtn = e.target.closest('.remove-device-btn')
+      if (removeBtn) {
+        const mac = removeBtn.dataset.mac
+        const row = removeBtn.closest('tr[data-mac]')
+        const unitId = row ? (Number(row.querySelector('.uid-input').value) || 0) : 0
+        if (unitId) {
+          for (const uids of Object.values(inputMap)) {
+            const i = uids.indexOf(unitId)
+            if (i >= 0) uids.splice(i, 1)
+          }
+        }
+        units = units.filter(u => u.mac !== mac)
+        socket.emit('removeDevice', { mac })
+        render()
+      }
     })
 
     document.addEventListener('change', e => {
