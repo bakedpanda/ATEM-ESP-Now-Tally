@@ -95,7 +95,17 @@
 
     socket.on('units', u => {
       units = u
-      if (inputMap === null) inputMap = buildInputMapFromUnits(u)
+      if (inputMap === null) {
+        inputMap = buildInputMapFromUnits(u)
+      } else {
+        // Prune unitIds no longer present so removals from other tabs propagate
+        const activeIds = new Set(u.filter(x => x.unitId).map(x => x.unitId))
+        for (const uids of Object.values(inputMap)) {
+          for (let i = uids.length - 1; i >= 0; i--) {
+            if (!activeIds.has(uids[i])) uids.splice(i, 1)
+          }
+        }
+      }
       render()
     })
     socket.on('inputNames', n => { inputNames = n; render() })
@@ -203,10 +213,11 @@
       const removeBtn = e.target.closest('.remove-device-btn')
       if (removeBtn) {
         const mac = removeBtn.dataset.mac
-        const removed = units.find(u => u.mac === mac)
-        if (removed && removed.unitId) {
+        const row = removeBtn.closest('tr[data-mac]')
+        const unitId = row ? (Number(row.querySelector('.uid-input').value) || 0) : 0
+        if (unitId) {
           for (const uids of Object.values(inputMap)) {
-            const i = uids.indexOf(removed.unitId)
+            const i = uids.indexOf(unitId)
             if (i >= 0) uids.splice(i, 1)
           }
         }

@@ -165,10 +165,30 @@ export function createSocketServer(httpServer, atemManager, getConfig, saveConfi
     })
 
     socket.on('removeDevice', ({ mac }) => {
+      if (!mac || typeof mac !== 'string') return
       const cfg = getConfig()
-      delete knownUnits[mac]
+      const savedUnit = cfg.units[mac]
+      const savedKnown = knownUnits[mac]
       delete cfg.units[mac]
-      saveConfig(cfg)
+      delete knownUnits[mac]
+      try {
+        saveConfig(cfg)
+      } catch (err) {
+        if (savedUnit !== undefined) cfg.units[mac] = savedUnit
+        if (savedKnown !== undefined) knownUnits[mac] = savedKnown
+        console.error('removeDevice: failed to save config:', err)
+        return
+      }
+      for (const [ws, deviceInfo] of connectedDevices) {
+        if (deviceInfo.mac !== mac) continue
+        if (ws.readyState === 1) ws.send(JSON.stringify({ type: 'role', status: 'unprovisioned' }))
+        if (bridgeWs === ws) {
+          bridgeWs = null
+          io.emit('bridgeStatus', 'disconnected')
+        }
+        connectedDevices.delete(ws)
+        break
+      }
       io.emit('units', formatUnits(knownUnits, getConfig()))
     })
 
