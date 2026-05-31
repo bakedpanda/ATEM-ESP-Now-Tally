@@ -164,6 +164,14 @@ export function createSocketServer(httpServer, atemManager, getConfig, saveConfi
       io.emit('units', formatUnits(knownUnits, getConfig()))
     })
 
+    socket.on('removeDevice', ({ mac }) => {
+      const cfg = getConfig()
+      delete knownUnits[mac]
+      delete cfg.units[mac]
+      saveConfig(cfg)
+      io.emit('units', formatUnits(knownUnits, getConfig()))
+    })
+
     socket.on('identifyUnit', ({ unitId }) => {
       console.log(`identify: unitId=${unitId}, bridgeWs=${bridgeWs ? 'connected' : 'null'}`)
       const cfg = getConfig()
