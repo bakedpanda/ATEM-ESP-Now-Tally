@@ -32,12 +32,14 @@ app.use(createRoutes(getConfig, getKnownUnits, getInputNames))
 const PORT = Number(process.env.PORT ?? 8259)
 httpServer.listen(PORT, () => {
   console.log(`ATEM Tally server running on http://localhost:${PORT}`)
-  advertiseMdns(PORT)
+  advertiseMdns()
 })
 
-function advertiseMdns(port) {
+function advertiseMdns() {
   const m = mdns()
   const hostname = 'atem-tally.local'
+
+  m.on('error', (err) => console.error('mDNS error:', err))
 
   function localIPs() {
     return Object.values(networkInterfaces())

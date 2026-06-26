@@ -1,6 +1,7 @@
 import { Server as SocketIO } from 'socket.io'
 import { WebSocketServer } from 'ws'
 import { buildUnitStates } from './tally.js'
+import { MAC_RE } from './config.js'
 
 export function createSocketServer(httpServer, atemManager, getConfig, saveConfig) {
   const io = new SocketIO(httpServer, { cors: { origin: '*' } })
@@ -59,9 +60,11 @@ export function createSocketServer(httpServer, atemManager, getConfig, saveConfi
       try {
         const msg = JSON.parse(data.toString())
         const deviceInfo = connectedDevices.get(ws)
+        if (!deviceInfo) return
 
         if (msg.type === 'hello') {
           const mac = msg.mac
+          if (!mac || !MAC_RE.test(mac)) return
           deviceInfo.mac = mac
           const cfg = getConfig()
           const assignment = cfg.units[mac]
@@ -89,18 +92,16 @@ export function createSocketServer(httpServer, atemManager, getConfig, saveConfi
         }
 
         if (msg.type === 'heartbeat') {
-          // Bridge sending its own heartbeat
           const mac = msg.mac || deviceInfo.mac
-          if (mac) {
+          if (mac && MAC_RE.test(mac)) {
             knownUnits[mac] = { lastSeen: Date.now() }
             io.emit('units', formatUnits(knownUnits, getConfig()))
           }
         }
 
         if (msg.type === 'heartbeat_relay') {
-          // Bridge relaying a receiver's heartbeat
           const mac = msg.mac
-          if (mac) {
+          if (mac && MAC_RE.test(mac)) {
             knownUnits[mac] = { lastSeen: Date.now() }
             io.emit('units', formatUnits(knownUnits, getConfig()))
           }
@@ -127,12 +128,17 @@ export function createSocketServer(httpServer, atemManager, getConfig, saveConfi
     socket.emit('tally', { atemConnected, states: buildUnitStates(lastTallys, cfg.units) })
 
     socket.on('saveAssignments', (assignments) => {
+      if (!Array.isArray(assignments)) return
+      if (assignments.filter(a => a.role === 'bridge').length > 1) return
+      const VALID_ROLES = new Set(['bridge', 'receiver'])
       // assignments: [{ mac, unitId, role, atemInput }]
       const cfg = getConfig()
       const oldUnits = { ...cfg.units }
 
       cfg.units = {}
       for (const a of assignments) {
+        if (!MAC_RE.test(a.mac)) continue
+        if (!VALID_ROLES.has(a.role)) continue
         cfg.units[a.mac] = {
           unitId: Number(a.unitId) || 0,
           role: a.role,
@@ -146,7 +152,15 @@ export function createSocketServer(httpServer, atemManager, getConfig, saveConfi
         if (!deviceInfo.mac) continue
         const newA = cfg.units[deviceInfo.mac]
         const oldA = oldUnits[deviceInfo.mac]
-        if (!newA) continue
+        if (!newA) {
+          if (ws.readyState === 1)
+            ws.send(JSON.stringify({ type: 'role', status: 'unprovisioned' }))
+          if (oldA?.role === 'bridge' && bridgeWs === ws) {
+            bridgeWs = null
+            io.emit('bridgeStatus', 'disconnected')
+          }
+          continue
+        }
         if (JSON.stringify(newA) !== JSON.stringify(oldA)) {
           ws.send(JSON.stringify({ type: 'role', unitId: newA.unitId, role: newA.role }))
           if (newA.role === 'bridge') {
@@ -187,7 +201,7 @@ export function createSocketServer(httpServer, atemManager, getConfig, saveConfi
           io.emit('bridgeStatus', 'disconnected')
         }
         connectedDevices.delete(ws)
-        break
+        ws.terminate()
       }
       io.emit('units', formatUnits(knownUnits, getConfig()))
     })

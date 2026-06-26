@@ -102,8 +102,14 @@ void wsClientInit(BridgeState* state, RoleCallback onRole, IdentifyCallback onId
         state->standbyBrightness = 20;
         state->animSpeedMs       = 40;
     }
-    // Initialise mDNS so the stack can resolve .local hostnames
-    MDNS.begin("tally");
+    // Initialise mDNS so the stack can resolve .local hostnames.
+    // Each device advertises a unique tally-XXYY.local using the last 2 MAC bytes.
+    String mac = WiFi.macAddress();
+    mac.replace(":", "");
+    String mdnsHostname = "tally-" + mac.substring(8);
+    if (!MDNS.begin(mdnsHostname.c_str())) {
+        Serial.println("mDNS init failed — .local resolution may not work");
+    }
     ws.begin("atem-tally.local", 8259, "/bridge");
     ws.onEvent(wsEvent);
     ws.setReconnectInterval(3000);

@@ -1,8 +1,12 @@
 services:
   tally:
     build: .
-    ports:
-      - "8259:8259"
+    # network_mode: host is required for mDNS multicast UDP (port 5353) to reach the
+    # container so ESP32 devices can resolve atem-tally.local. Works on Linux only —
+    # Docker Desktop on macOS/Windows blocks multicast inside the VM. Run natively on
+    # those platforms instead: cd server && npm install && npm start
+    network_mode: host
+    # ports: is ignored with network_mode: host; the server still listens on 8259
     volumes:
       - tally-config:/config
     environment:

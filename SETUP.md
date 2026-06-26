@@ -14,16 +14,20 @@ This guide walks you through setting up the ATEM ESP-NOW Tally system from scrat
 | WS2812 LED strip, 6 LEDs per unit | Cut from a longer strip |
 | USB-A to USB-C cables | One per unit (power only) |
 | USB power supplies | One per unit, or a powered USB hub |
-| Mac, PC, or Raspberry Pi | For the base station (anything that runs Docker) |
+| Mac, PC, or Raspberry Pi | For the base station |
 
 ### Software prerequisites
 
 | Tool | Purpose | Install |
 |---|---|---|
-| Docker Desktop (Mac/Win) or Docker Engine (Linux/Pi) | Runs the base station | [docker.com](https://www.docker.com/get-started/) |
+| Node.js 18+ | Runs the base station | [nodejs.org](https://nodejs.org) |
 | PlatformIO CLI | Builds and flashes firmware | See [section 4](#4-firmware-prerequisites) |
 | Python 3 | Required by PlatformIO | [python.org](https://www.python.org) |
 | Git | Cloning the repo | [git-scm.com](https://git-scm.com) |
+
+> **Docker (optional, Linux only):** Docker can be used on Linux and Raspberry Pi. It is
+> not recommended on macOS or Windows because Docker Desktop blocks the mDNS multicast
+> that ESP32 devices use to find the server. Run natively on those platforms.
 
 ---
 
@@ -36,18 +40,36 @@ cd ATEM-ESP-Now-Tally
 
 ---
 
-## 2. Base station (Docker)
+## 2. Base station
 
-The base station is a Node.js server that connects to your ATEM over the network and serves the web UI.
+The base station is a Node.js server that connects to your ATEM over the network and serves the web UI. ESP32 devices find it automatically via mDNS (`atem-tally.local`) — no IP configuration needed.
 
-### Start the server
+### macOS / Windows — run natively
+
+```bash
+cd server
+npm install
+npm start
+```
+
+> **Why not Docker?** Docker Desktop on macOS and Windows runs containers inside a Linux VM. mDNS multicast UDP never crosses that VM boundary, so ESP32 devices can't discover the server. Run Node.js natively instead.
+
+### Linux / Raspberry Pi — Docker (optional)
 
 ```bash
 cd server
 docker compose up --build -d
 ```
 
-This builds the container and starts it in the background. Config is stored in a Docker volume so it survives restarts.
+Config is stored in a Docker volume so it survives restarts. The `docker-compose.yml` uses `network_mode: host` so mDNS packets reach the container.
+
+To run natively on Linux instead (same as macOS/Windows):
+
+```bash
+cd server
+npm install
+npm start
+```
 
 ### Verify it's running
 
@@ -55,7 +77,7 @@ Open **http://localhost:8259** in a browser. You should see the dashboard.
 
 > **On Raspberry Pi or a remote machine:** replace `localhost` with the machine's IP address. Make sure port 8259 is reachable from your network.
 
-### Stop / restart
+### Stop / restart (Docker)
 
 ```bash
 docker compose down      # stop
@@ -147,9 +169,7 @@ Edit **`firmware/include/config.h`** once for your site. Every unit gets this sa
 #define WIFI_SSID     "your-network"
 #define WIFI_PASSWORD "your-password"
 
-// Base station (machine running Docker)
-#define SERVER_HOST   "192.168.1.100"
-#define SERVER_PORT   8259
+// Server is discovered automatically via mDNS (atem-tally.local)
 ```
 
 > **Tip:** Use a 2.4 GHz network. ESP32-C3 does not support 5 GHz.
@@ -269,8 +289,9 @@ Assign it the same Unit ID and Role as the failed unit, click **Save**. The repl
 
 ### Dashboard shows "Bridge: disconnected"
 - Check the bridge serial monitor — did it connect to WiFi and the server?
-- Confirm `SERVER_HOST` in `config.h` points to the correct IP
-- Make sure the Docker container is running: `docker compose ps`
+- Confirm the server is running and reachable on your network (try `http://[server-ip]:8259`)
+- On macOS/Windows, make sure you're running the server natively (`npm start`), not via Docker Desktop (Docker Desktop blocks mDNS)
+- Make sure the Docker container is running (Linux/Pi): `docker compose ps`
 - Confirm the unit was assigned `Role: Bridge` on the `/assign` page
 
 ### Unit shows blue breathing and doesn't progress
@@ -285,7 +306,8 @@ Assign it the same Unit ID and Role as the failed unit, click **Save**. The repl
 ### Units don't appear in /assign
 - Units appear as soon as they connect and send their `hello` message (within a few seconds of booting)
 - Check the serial monitor — if it's stuck on `Connecting to WiFi`, check `WIFI_SSID` / `WIFI_PASSWORD` in `config.h`
-- Make sure the unit can reach `SERVER_HOST` on port `SERVER_PORT`
+- If the serial monitor shows `mDNS init failed`, try power-cycling the unit after the server is fully started
+- Make sure the server is reachable as `atem-tally.local` from your network (mDNS must not be blocked by the router)
 
 ### ATEM won't connect
 - Verify the IP in Settings is correct
