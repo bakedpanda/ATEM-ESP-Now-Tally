@@ -1,10 +1,8 @@
 import { createServer } from 'http'
-import { networkInterfaces } from 'os'
+import { createSocket } from 'dgram'
 import express from 'express'
 import { fileURLToPath } from 'url'
 import { join, dirname } from 'path'
-import { existsSync } from 'fs'
-import mdns from 'multicast-dns'
 import { readConfig, writeConfig } from './config.js'
 import { AtemManager } from './atem.js'
 import { createSocketServer } from './socket.js'
@@ -30,39 +28,26 @@ const { getKnownUnits, getInputNames } = createSocketServer(
 app.use(createRoutes(getConfig, getKnownUnits, getInputNames))
 
 const PORT = Number(process.env.PORT ?? 8259)
+const DISCOVERY_PORT = 47269
+
 httpServer.listen(PORT, () => {
   console.log(`ATEM Tally server running on http://localhost:${PORT}`)
-  advertiseMdns()
+  startDiscoveryResponder()
 })
 
-function advertiseMdns() {
-  const m = mdns()
-  const hostname = 'atem-tally.local'
-
-  m.on('error', (err) => console.error('mDNS error:', err))
-
-  function localIPs() {
-    return Object.values(networkInterfaces())
-      .flat()
-      .filter(n => n.family === 'IPv4' && !n.internal)
-      .map(n => n.address)
-  }
-
-  m.on('query', (query) => {
-    const ips = localIPs()
-    if (!ips.length) return
-    const answers = []
-    for (const q of query.questions) {
-      if ((q.type === 'A' || q.type === 'ANY') && q.name === hostname) {
-        for (const ip of ips) {
-          answers.push({ name: hostname, type: 'A', ttl: 300, data: ip })
-        }
-      }
+function startDiscoveryResponder() {
+  const sock = createSocket('udp4')
+  sock.on('error', (err) => console.error('Discovery UDP error:', err))
+  sock.on('message', (msg, rinfo) => {
+    if (msg.toString().trim() === 'tally-discover') {
+      const reply = Buffer.from('tally-server')
+      sock.send(reply, rinfo.port, rinfo.address)
     }
-    if (answers.length) m.respond({ answers })
   })
-
-  console.log(`mDNS: advertising as ${hostname}`)
+  sock.bind(DISCOVERY_PORT, () => {
+    sock.setBroadcast(true)
+    console.log(`Discovery responder listening on UDP ${DISCOVERY_PORT}`)
+  })
 }
 
 // Auto-connect to ATEM on startup

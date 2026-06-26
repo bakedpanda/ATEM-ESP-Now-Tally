@@ -9,7 +9,6 @@
   "dependencies": {
     "atem-connection": "^3.4.0",
     "express": "^4.19.2",
-    "multicast-dns": "^7.2.5",
     "socket.io": "^4.7.5",
     "ws": "^8.17.1"
   },

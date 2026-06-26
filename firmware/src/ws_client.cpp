@@ -3,15 +3,21 @@
 #include "provisioning.h"
 #include <WebSocketsClient.h>
 #include <ArduinoJson.h>
-#include <ESPmDNS.h>
+#include <WiFiUdp.h>
 #include <WiFi.h>
 
+#define DISCOVERY_PORT        47269
+#define DISCOVERY_INTERVAL_MS 2000
+
 static WebSocketsClient ws;
-static BridgeState*     bridgeState     = nullptr;
-static RoleCallback     roleCallback    = nullptr;
-static IdentifyCallback identifyCallback = nullptr;
-static bool             connected       = false;
-static char             cachedMac[18]   = {};  // "AA:BB:CC:DD:EE:FF\0"
+static WiFiUDP           udp;
+static BridgeState*      bridgeState      = nullptr;
+static RoleCallback      roleCallback     = nullptr;
+static IdentifyCallback  identifyCallback = nullptr;
+static bool              connected        = false;
+static bool              wsStarted        = false;
+static unsigned long     lastDiscovery    = 0;
+static char              cachedMac[18]    = {};  // "AA:BB:CC:DD:EE:FF\0"
 
 static uint8_t animSpeedToMs(const char* speed) {
     if (strcmp(speed, "fast") == 0)   return 15;
@@ -102,20 +108,41 @@ void wsClientInit(BridgeState* state, RoleCallback onRole, IdentifyCallback onId
         state->standbyBrightness = 20;
         state->animSpeedMs       = 40;
     }
-    // Initialise mDNS so the stack can resolve .local hostnames.
-    // Each device advertises a unique tally-XXYY.local using the last 2 MAC bytes.
-    String mac = WiFi.macAddress();
-    mac.replace(":", "");
-    String mdnsHostname = "tally-" + mac.substring(8);
-    if (!MDNS.begin(mdnsHostname.c_str())) {
-        Serial.println("mDNS init failed — .local resolution may not work");
-    }
-    ws.begin("atem-tally.local", 8259, "/bridge");
-    ws.onEvent(wsEvent);
-    ws.setReconnectInterval(3000);
+    udp.begin(DISCOVERY_PORT);
+    Serial.println("Searching for tally server...");
 }
 
-void        wsClientTick()             { ws.loop(); }
+void wsClientTick() {
+    if (!wsStarted) {
+        unsigned long now = millis();
+        if (now - lastDiscovery >= DISCOVERY_INTERVAL_MS) {
+            lastDiscovery = now;
+            Serial.println("Searching for tally server...");
+            udp.beginPacket(IPAddress(255, 255, 255, 255), DISCOVERY_PORT);
+            udp.print("tally-discover");
+            udp.endPacket();
+        }
+        int pktLen = udp.parsePacket();
+        if (pktLen > 0) {
+            char buf[32];
+            int n = udp.read(buf, sizeof(buf) - 1);
+            buf[n] = '\0';
+            if (strncmp(buf, "tally-server", 12) == 0) {
+                char ipStr[16];
+                IPAddress ip = udp.remoteIP();
+                snprintf(ipStr, sizeof(ipStr), "%d.%d.%d.%d", ip[0], ip[1], ip[2], ip[3]);
+                Serial.printf("Server found at %s\n", ipStr);
+                udp.stop();
+                ws.begin(ipStr, 8259, "/bridge");
+                ws.onEvent(wsEvent);
+                ws.setReconnectInterval(3000);
+                wsStarted = true;
+            }
+        }
+        return;
+    }
+    ws.loop();
+}
 bool        wsClientIsConnected()      { return connected; }
 void        wsClientSendText(const char* msg) { ws.sendTXT(msg); }
 const char* wsClientGetMac()           { return cachedMac; }
