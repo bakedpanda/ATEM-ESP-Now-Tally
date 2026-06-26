@@ -3,6 +3,7 @@
 #include "provisioning.h"
 #include <WebSocketsClient.h>
 #include <ArduinoJson.h>
+#include <ESPmDNS.h>
 #include <WiFi.h>
 
 static WebSocketsClient ws;
@@ -101,7 +102,9 @@ void wsClientInit(BridgeState* state, RoleCallback onRole, IdentifyCallback onId
         state->standbyBrightness = 20;
         state->animSpeedMs       = 40;
     }
-    ws.begin(SERVER_HOST, SERVER_PORT, "/bridge");
+    // Initialise mDNS so the stack can resolve .local hostnames
+    MDNS.begin("tally");
+    ws.begin("atem-tally.local", 8259, "/bridge");
     ws.onEvent(wsEvent);
     ws.setReconnectInterval(3000);
 }

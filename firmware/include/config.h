@@ -12,6 +12,4 @@
 #define WIFI_SSID     "your-network"
 #define WIFI_PASSWORD "your-password"
 
-// Base station (machine running Docker)
-#define SERVER_HOST   "192.168.1.100"
-#define SERVER_PORT   8259
+// Server is discovered automatically via mDNS (atem-tally.local)
