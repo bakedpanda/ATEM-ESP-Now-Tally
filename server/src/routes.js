@@ -18,5 +18,10 @@ export function createRoutes(getConfig, getKnownUnits, getInputNames) {
   router.get('/api/units', (_req, res) => res.json(getKnownUnits()))
   router.get('/api/inputs', (_req, res) => res.json(getInputNames()))
 
+  router.post('/api/shutdown', (_req, res) => {
+    res.json({ ok: true })
+    setTimeout(() => process.exit(0), 200)
+  })
+
   return router
 }

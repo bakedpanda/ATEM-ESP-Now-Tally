@@ -1,8 +1,8 @@
 import { createServer } from 'http'
+import { createSocket } from 'dgram'
 import express from 'express'
 import { fileURLToPath } from 'url'
 import { join, dirname } from 'path'
-import { existsSync } from 'fs'
 import { readConfig, writeConfig } from './config.js'
 import { AtemManager } from './atem.js'
 import { createSocketServer } from './socket.js'
@@ -28,9 +28,27 @@ const { getKnownUnits, getInputNames } = createSocketServer(
 app.use(createRoutes(getConfig, getKnownUnits, getInputNames))
 
 const PORT = Number(process.env.PORT ?? 8259)
+const DISCOVERY_PORT = 47269
+
 httpServer.listen(PORT, () => {
   console.log(`ATEM Tally server running on http://localhost:${PORT}`)
+  startDiscoveryResponder()
 })
+
+function startDiscoveryResponder() {
+  const sock = createSocket('udp4')
+  sock.on('error', (err) => console.error('Discovery UDP error:', err))
+  sock.on('message', (msg, rinfo) => {
+    if (msg.toString().trim() === 'tally-discover') {
+      const reply = Buffer.from('tally-server')
+      sock.send(reply, rinfo.port, rinfo.address)
+    }
+  })
+  sock.bind(DISCOVERY_PORT, () => {
+    sock.setBroadcast(true)
+    console.log(`Discovery responder listening on UDP ${DISCOVERY_PORT}`)
+  })
+}
 
 // Auto-connect to ATEM on startup
 if (config.atem.ip) {

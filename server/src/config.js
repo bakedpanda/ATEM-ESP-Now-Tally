@@ -13,7 +13,7 @@ export const DEFAULT_CONFIG = {
 }
 
 // MAC addresses match XX:XX:XX:XX:XX:XX (case-insensitive hex pairs)
-const MAC_RE = /^([0-9A-Fa-f]{2}:){5}[0-9A-Fa-f]{2}$/
+export const MAC_RE = /^([0-9A-Fa-f]{2}:){5}[0-9A-Fa-f]{2}$/
 
 function isMacKeyed(units) {
   const keys = Object.keys(units)
